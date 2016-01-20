@@ -16,8 +16,10 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 source "$DIR/../common/_common.sh"
 
-$REPOROOT/scripts/compile/compile-corehost.sh
+if [ ! -z "$DEV" ]; then
+	$REPOROOT/scripts/compile/compile-corehost.sh
 
-$REPOROOT/scripts/compile/compile-stage-1.sh
+	$REPOROOT/scripts/compile/compile-stage-1.sh
+fi
 
 $REPOROOT/scripts/compile/compile-stage-2.sh

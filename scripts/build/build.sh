@@ -40,7 +40,7 @@ fi
 
 header "Restoring Tools and Packages"
 
-if [ ! -z "$OFFLINE" ]; then
+if [ \( ! -z "$OFFLINE" \) -o \( ! -z "$DEV" \) ]; then
     info "Skipping Tools and Package Download: Offline build"
 else
    $REPOROOT/scripts/obtain/install-tools.sh
@@ -49,7 +49,7 @@ else
 fi
 
 header "Compiling"
-$REPOROOT/scripts/compile/compile.sh
+$REPOROOT/scripts/compile/compile.sh $DEV
 
 header "Setting Stage2 as PATH, DOTNET_HOME, and DOTNET_TOOLS"
 export DOTNET_HOME=$STAGE2_DIR && export DOTNET_TOOLS=$STAGE2DIR && export PATH=$STAGE2_DIR/bin:$PATH 
@@ -57,5 +57,7 @@ export DOTNET_HOME=$STAGE2_DIR && export DOTNET_TOOLS=$STAGE2DIR && export PATH=
 header "Running Tests"
 $REPOROOT/scripts/test/runtests.sh
 
-header "Validating Dependencies"
-$REPOROOT/scripts/test/validate-dependencies.sh
+if [ ! -z "$DEV" ]; then
+	header "Validating Dependencies"
+	$REPOROOT/scripts/test/validate-dependencies.sh
+fi

@@ -3,7 +3,9 @@
 # Licensed under the MIT license. See LICENSE file in the project root for full license information.
 #
 
-param([string]$Configuration = "Debug")
+param(
+	[string]$Configuration = "Debug",
+	[switch]$Dev)
 
 $ErrorActionPreference="Stop"
 
@@ -14,9 +16,11 @@ $StartPath = $env:PATH
 $StartDotNetHome = $env:DOTNET_HOME
 
 try {
-    _ "$RepoRoot\scripts\compile\compile-corehost.ps1"
+	if (-not $Dev){
+	    _ "$RepoRoot\scripts\compile\compile-corehost.ps1"
 
-    _ "$RepoRoot\scripts\compile\compile-stage-1.ps1"
+	    _ "$RepoRoot\scripts\compile\compile-stage-1.ps1"
+	}
     
     _ "$RepoRoot\scripts\compile\compile-stage-2.ps1"
 } finally {

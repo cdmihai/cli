@@ -7,7 +7,8 @@ param(
     [string]$Configuration="Debug",
     [switch]$Offline,
     [switch]$NoCache,
-    [switch]$NoPackage)
+    [switch]$NoPackage,
+    [switch]$Dev)
 
 $ErrorActionPreference="Stop"
 
@@ -34,7 +35,7 @@ _ "$RepoRoot\scripts\test\check-prereqs.ps1"
 
 header "Restoring Tools and Packages"
 
-if ($Offline){
+if ($Offline -or $Dev){
     info "Skipping Tools and Packages dowlnoad: Offline build"
 }
 else {
@@ -44,7 +45,7 @@ else {
 }
 
 header "Compiling"
-_ "$RepoRoot\scripts\compile\compile.ps1" @("$Configuration")
+_ "$RepoRoot\scripts\compile\compile.ps1" @("$Configuration", "$Dev")
 
 header "Setting Stage2 as PATH and DOTNET_TOOLS"
 setPathAndHome "$Stage2Dir"
@@ -52,13 +53,15 @@ setPathAndHome "$Stage2Dir"
 header "Running Tests"
 _ "$RepoRoot\scripts\test\runtests.ps1"
 
-header "Validating Dependencies"
-_ "$RepoRoot\scripts\test\validate-dependencies.ps1"
+if (-not $Dev){
+    header "Validating Dependencies"
+    _ "$RepoRoot\scripts\test\validate-dependencies.ps1"
 
-if ($NoPackage){
-    info "Skipping Packaging"
-    exit 0
-}
-else {
-    _ "$RepoRoot\scripts\package\package.ps1"
+    if ($NoPackage){
+        info "Skipping Packaging"
+        exit 0
+    }
+    else {
+        _ "$RepoRoot\scripts\package\package.ps1"
+    }
 }
