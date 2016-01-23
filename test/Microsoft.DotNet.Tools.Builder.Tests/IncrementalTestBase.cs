@@ -60,6 +60,14 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
             var buildCommand = new BuildCommand(mainProjectFile, output: outputDir, tempOutput: intermediateOutputDir ,forceIncrementalUnsafe : forceIncrementalUnsafe);
             var result = buildCommand.ExecuteWithCapturedOutput();
 
+            if(result.ExitCode != 0)
+            {
+                Reporter.Output.WriteLine("foobar");
+                Reporter.Output.WriteLine("======================\nOutput: " + outputDir);
+                Reporter.Output.WriteLine("======================\nStdout: \n " + result.StdOut);
+                Reporter.Output.WriteLine("======================\nStdErr: \n " + result.StdErr);
+            }
+
             if (!expectBuildFailure)
             {
                 result.Should().Pass();

@@ -114,7 +114,8 @@ namespace Microsoft.DotNet.Tools.Publish
                 $"--framework \"{context.TargetFramework.DotNetFrameworkName}\" " +
                 $"--output \"{outputPath}\" " +
                 $"--configuration \"{configuration}\" " +
-                "--no-host " +
+                "--no-host " + 
+                "--build-profile " + 
                 $"\"{context.ProjectFile.ProjectDirectory}\"")
                 .ForwardStdErr()
                 .ForwardStdOut()

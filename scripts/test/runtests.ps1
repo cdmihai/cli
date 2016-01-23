@@ -5,15 +5,17 @@
 
 . "$PSScriptRoot\..\common\_common.ps1"
 
+$env:DOTNET_TEST_PRESERVE_TEMP="true"
+
 $failCount = 0
 
 $TestBinRoot = "$RepoRoot\artifacts\tests"
 
 $TestProjects = @(
-    "E2E",
-    "StreamForwarderTests",
-    "Microsoft.DotNet.Tools.Publish.Tests",
-    "Microsoft.DotNet.Tools.Compiler.Tests",
+    # "E2E",
+    # "StreamForwarderTests",
+    # "Microsoft.DotNet.Tools.Publish.Tests",
+    # "Microsoft.DotNet.Tools.Compiler.Tests",
     "Microsoft.DotNet.Tools.Builder.Tests"
 )
 
@@ -48,14 +50,27 @@ $failingTests = @()
 pushd "$TestBinRoot"
 
 # Run each test project
-$TestProjects | ForEach-Object {
-    & ".\corerun" "xunit.console.netcore.exe" "$_.dll" -xml "$_-testResults.xml" -notrait category=failing
+# $TestProjects | ForEach-Object {
+#     & ".\corerun" /d "xunit.console.netcore.exe" "$_.dll" -xml "$_-testResults.xml" -notrait category=failing
+#     $exitCode = $LastExitCode
+#     if ($exitCode -ne 0) {
+#         $failingTests += "$_"
+#     }
+
+#     $failCount += $exitCode
+# }
+
+while($true)
+{
+    & ".\corerun" "xunit.console.netcore.exe" "Microsoft.DotNet.Tools.Builder.Tests.dll" -xml "Builder-testResults.xml" -notrait category=failing
     $exitCode = $LastExitCode
     if ($exitCode -ne 0) {
-        $failingTests += "$_"
-    }
+        $failCount += 1
+        cp "Builder-testResults.xml" "Builder-testResults_$failCount.xml"
 
-    $failCount += $exitCode
+        echo "foobar failed:"
+        echo $failCount
+    }
 }
 
 popd
