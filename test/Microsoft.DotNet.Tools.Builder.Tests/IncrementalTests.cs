@@ -66,7 +66,7 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
             Assert.Contains("does not have a lock file", buildResult.StdErr);
         }
 
-        [Fact]
+        [Fact(Skip="https://github.com/dotnet/cli/issues/980")]
         public void TestRebuildChangedLockFile()
         {
 
@@ -80,7 +80,7 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
             AssertProjectCompiled(_mainProject, buildResult);
         }
 
-        [Fact]
+        [Fact(Skip="https://github.com/dotnet/cli/issues/980")]
         public void TestRebuildChangedProjectFile()
         {
 
