@@ -13,29 +13,29 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
 {
     public class IncrementalTestBase : TestBase
     {
-        protected readonly TempDirectory _tempProjectRoot;
+        protected readonly TempDirectory TempProjectRoot;
 
-        private readonly string _testProjectsRoot;
-        protected readonly string _mainProject;
-        protected readonly string _expectedOutput;
+        protected readonly string TestProjectsRoot;
+        protected readonly string MainProject;
+        protected readonly string ExpectedOutput;
 
         public IncrementalTestBase(string testProjectsRoot, string mainProject, string expectedOutput)
         {
-            _testProjectsRoot = testProjectsRoot;
-            _mainProject = mainProject;
-            _expectedOutput = expectedOutput;
+            TestProjectsRoot = testProjectsRoot;
+            MainProject = mainProject;
+            ExpectedOutput = expectedOutput;
 
             // create unique directories in the 'temp' folder
             var root = Temp.CreateDirectory();
 
             // recursively copy projects to the temp dir and restore them
-            _tempProjectRoot = root.CopyDirectory(testProjectsRoot);
-            RunRestore(_tempProjectRoot.Path);
+            TempProjectRoot = root.CopyDirectory(testProjectsRoot);
+            RunRestore(TempProjectRoot.Path);
         }
 
         protected void TouchSourcesOfProject()
         {
-            TouchSourcesOfProject(_mainProject);
+            TouchSourcesOfProject(MainProject);
         }
 
         protected void TouchSourcesOfProject(string projectToTouch)
@@ -53,9 +53,9 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
 
         protected CommandResult BuildProject(bool forceIncrementalUnsafe = false, bool expectBuildFailure = false)
         {
-            var outputDir = GetBinDirectory();
-            var intermediateOutputDir = Path.Combine(Directory.GetParent(outputDir).FullName, "obj", _mainProject);
-            var mainProjectFile = GetProjectFile(_mainProject);
+            var outputDir = GetBinRoot();
+            var intermediateOutputDir = Path.Combine(Directory.GetParent(outputDir).FullName, "obj", MainProject);
+            var mainProjectFile = GetProjectFile(MainProject);
 
             var buildCommand = new BuildCommand(mainProjectFile, output: outputDir, tempOutput: intermediateOutputDir ,forceIncrementalUnsafe : forceIncrementalUnsafe);
             var result = buildCommand.ExecuteWithCapturedOutput();
@@ -63,7 +63,7 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
             if (!expectBuildFailure)
             {
                 result.Should().Pass();
-                TestOutputExecutable(outputDir, buildCommand.GetOutputExecutableName(), _expectedOutput);
+                TestOutputExecutable(outputDir, buildCommand.GetOutputExecutableName(), ExpectedOutput);
             }
             else
             {
@@ -83,14 +83,14 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
             Assert.Contains($"Project {rebuiltProject} will be compiled", buildResult.StdOut, StringComparison.OrdinalIgnoreCase);
         }
 
-        protected string GetBinDirectory()
+        protected string GetBinRoot()
         {
-            return Path.Combine(_tempProjectRoot.Path, "bin");
+            return Path.Combine(TempProjectRoot.Path, "bin");
         }
 
         protected virtual string GetProjectDirectory(string projectName)
         {
-            return Path.Combine(_tempProjectRoot.Path);
+            return Path.Combine(TempProjectRoot.Path);
         }
 
         protected string GetProjectFile(string projectName)
@@ -111,7 +111,7 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
 
         protected string GetCompilationOutputPath()
         {
-            var executablePath = Path.Combine(GetBinDirectory(), "Debug", "dnxcore50");
+            var executablePath = Path.Combine(GetBinRoot(), "Debug", "dnxcore50");
 
             return executablePath;
         }
