@@ -119,7 +119,8 @@ namespace Microsoft.DotNet.Tools.Build
             }
 
             // find inputs that are older than the earliest output
-            var newInputs = compilerIO.Inputs.FindAll(p => File.GetLastWriteTime(p) > minDate);
+            // use 
+            var newInputs = compilerIO.Inputs.FindAll(p => File.GetLastWriteTime(p) >= minDate);
 
             if (!newInputs.Any())
             {
