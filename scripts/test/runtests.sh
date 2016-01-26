@@ -20,16 +20,16 @@ source "$DIR/../common/_common.sh"
 TestBinRoot="$REPOROOT/artifacts/tests"
 
 TestProjects=( \
-    E2E \
-    StreamForwarderTests \
-    Microsoft.DotNet.Tools.Publish.Tests \
-    Microsoft.DotNet.Tools.Compiler.Tests \
+    # E2E \
+    # StreamForwarderTests \
+    # Microsoft.DotNet.Tools.Publish.Tests \
+    # Microsoft.DotNet.Tools.Compiler.Tests \
     Microsoft.DotNet.Tools.Builder.Tests \
 )
 
 for project in ${TestProjects[@]}
 do
-    dotnet publish --framework "dnxcore50" --output "$TestBinRoot" --configuration "$CONFIGURATION" "$REPOROOT/test/$project"
+    dotnet --verbose publish --framework "dnxcore50" --output "$TestBinRoot" --configuration "$CONFIGURATION" "$REPOROOT/test/$project"
 done
 
 # copy TestProjects folder which is used by the test cases
@@ -43,21 +43,35 @@ set +e
 failedTests=()
 failCount=0
 
-for project in ${TestProjects[@]}
+# for project in ${TestProjects[@]}
+# do
+#     ./corerun "xunit.console.netcore.exe" "$project.dll" -xml "${project}-testResults.xml" -notrait category=failing
+#     exitCode=$?
+#     failCount+=$exitCode
+#     if [ $exitCode -ne 0 ]; then
+#         failedTests+=("${project}.dll")
+#     fi
+# done
+
+while true
 do
-    ./corerun "xunit.console.netcore.exe" "$project.dll" -xml "${project}-testResults.xml" -notrait category=failing
-    exitCode=$?
-    failCount+=$exitCode
-    if [ $exitCode -ne 0 ]; then
-        failedTests+=("${project}.dll")
-    fi
+  ./corerun "xunit.console.netcore.exe" "Microsoft.DotNet.Tools.Builder.Tests.dll" -xml "Builder-testResults.xml" -notrait category=failing
+  exitCode=$?
+  if [ $exitCode -ne 0 ]; then
+
+      echo "foobar: "$failCount
+
+      cp "Builder-testResults.xml" "Builder-testResults_$failCount.xml"
+      failCount+=1
+  fi
 done
 
-"$REPOROOT/scripts/test/package-command-test.sh"
-if [ $? -ne 0 ]; then
-    failCount+=1
-    failedTests+=("package-command-test.sh")
-fi
+#
+# "$REPOROOT/scripts/test/package-command-test.sh"
+# if [ $? -ne 0 ]; then
+#     failCount+=1
+#     failedTests+=("package-command-test.sh")
+# fi
 
 for test in ${failedTests[@]}
 do
