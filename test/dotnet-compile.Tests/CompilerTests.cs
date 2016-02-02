@@ -36,7 +36,27 @@ namespace Microsoft.DotNet.Tools.Publish.Tests
             Assert.True(File.Exists(outputXml));
             Assert.Contains("Gets the message from the helper", File.ReadAllText(outputXml));
         }
-        
+
+        [Fact]
+        public void TestResourceIsGeneratedByDotnetResgen()
+        {
+            // create unique directories in the 'temp' folder
+            var root = Temp.CreateDirectory();
+            root.CopyFile(Path.Combine(_testProjectsRoot, "global.json"));
+
+            var testLibDir = root.CopyDirectory(Path.Combine(_testProjectsRoot, "TestProjectWithResource"));
+
+            // run compile on a project with resources
+            var outputDir = Path.Combine(testLibDir.Path, "bin");
+            var testProjectPath = GetProjectPath(testLibDir);
+            var buildCommand = new BuildCommand(testProjectPath, output: outputDir);
+            var result = buildCommand.ExecuteWithCapturedOutput();
+            result.Should().Pass();
+            
+            var generatedResourceFilePath = Path.Combine(GetCompilationOutputPath(outputDir, false), "tests.Strings.resources");
+            Assert.True(File.Exists(generatedResourceFilePath));
+        }
+
         [Fact]
         public void LibraryWithAnalyzer()
         {
