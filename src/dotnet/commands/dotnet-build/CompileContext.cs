@@ -23,9 +23,9 @@ namespace Microsoft.DotNet.Tools.Build
         public static readonly string[] KnownCompilers = { "csc", "vbc", "fsc" };
 
         private readonly ProjectContext _rootProject;
+        private readonly ProjectDependenciesFacade _rootProjectDependencies;
         private readonly BuilderCommandApp _args;
         private readonly IncrementalPreconditions _preconditions;
-        private readonly ProjectDependenciesFacade _dependencies;
 
         public bool IsSafeForIncrementalCompilation => !_preconditions.PreconditionsDetected();
 
@@ -44,7 +44,7 @@ namespace Microsoft.DotNet.Tools.Build
                 outputPathCalculator.GetIntermediateOutputDirectoryPath(_args.ConfigValue, _args.IntermediateValue);
 
             // Set up dependencies
-            _dependencies = new ProjectDependenciesFacade(_rootProject, _args.ConfigValue);
+            _rootProjectDependencies = new ProjectDependenciesFacade(_rootProject, _args.ConfigValue);
 
             // gather preconditions
             _preconditions = GatherIncrementalPreconditions();
@@ -54,17 +54,36 @@ namespace Microsoft.DotNet.Tools.Build
         {
             CreateOutputDirectories();
 
-            // compile dependencies
-            foreach (var dependency in Sort(_dependencies.ProjectDependenciesWithSources))
-            {
-                if (incremental)
-                {
-                    var dependencyProjectContext = ProjectContext.Create(dependency.Path, dependency.Framework);
+            return CompileDendencies(incremental) && CompileRootProject(incremental);
+        }
 
-                    if (!DependencyNeedsRebuilding(dependencyProjectContext, new ProjectDependenciesFacade(dependencyProjectContext, _args.ConfigValue)))
-                    {
-                        continue;
-                    }
+        private bool CompileRootProject(bool incremental)
+        {
+            if (incremental && !RootProjectsNeedsRebuilding(_rootProject, _rootProjectDependencies))
+            {
+                // todo: what if the previous build had errors / warnings and nothing changed? Need to propagate them in case of incremental
+                return true;
+            }
+
+            var success = InvokeCompileOnRootProject();
+
+            PrintSummary(success);
+
+            return success;
+        }
+
+        private bool CompileDendencies(bool incremental)
+        {
+            if (_args.NoDependenciesValue)
+            {
+                return true;
+            }
+
+            foreach (var dependency in Sort(_rootProjectDependencies.ProjectDependenciesWithSources))
+            {
+                if (incremental && !DependencyNeedsRebuilding(ProjectContext.Create(dependency.Path, dependency.Framework)))
+                {
+                    continue;
                 }
 
                 if (!InvokeCompileOnDependency(dependency))
@@ -73,26 +92,15 @@ namespace Microsoft.DotNet.Tools.Build
                 }
             }
 
-            if (incremental && !NeedsRebuilding(_rootProject, _dependencies))
-            {
-                // todo: what if the previous build had errors / warnings and nothing changed? Need to propagate them in case of incremental
-                return true;
-            }
-
-            // compile project
-            var success = InvokeCompileOnRootProject();
-
-            PrintSummary(success);
-
-            return success;
+            return true;
         }
 
-        private bool DependencyNeedsRebuilding(ProjectContext project, ProjectDependenciesFacade dependencies)
+        private bool DependencyNeedsRebuilding(ProjectContext projectForDependency)
         {
-            return NeedsRebuilding(project, dependencies, buildOutputPath: null, intermediateOutputPath: null);
+            return NeedsRebuilding(projectForDependency, new ProjectDependenciesFacade(projectForDependency, _args.ConfigValue), buildOutputPath: null, intermediateOutputPath: null);
         }
 
-        private bool NeedsRebuilding(ProjectContext project, ProjectDependenciesFacade dependencies)
+        private bool RootProjectsNeedsRebuilding(ProjectContext project, ProjectDependenciesFacade dependencies)
         {
             return NeedsRebuilding(project, dependencies, _args.OutputValue, _args.IntermediateValue);
         }
@@ -219,11 +227,16 @@ namespace Microsoft.DotNet.Tools.Build
         // check the entire project tree that needs to be compiled, duplicated for each framework
         private List<ProjectContext> GetProjectsToCheck()
         {
+            if (_args.NoDependenciesValue)
+            {
+                return new List<ProjectContext>(1) { _rootProject };
+            }
+
             // include initial root project
-            var contextsToCheck = new List<ProjectContext>(1 + _dependencies.ProjectDependenciesWithSources.Count) { _rootProject };
+            var contextsToCheck = new List<ProjectContext>(1 + _rootProjectDependencies.ProjectDependenciesWithSources.Count) { _rootProject };
 
             // convert ProjectDescription to ProjectContext
-            var dependencyContexts = _dependencies.ProjectDependenciesWithSources.Select
+            var dependencyContexts = _rootProjectDependencies.ProjectDependenciesWithSources.Select
                 (keyValuePair => ProjectContext.Create(keyValuePair.Value.Path, keyValuePair.Value.Framework));
 
             contextsToCheck.AddRange(dependencyContexts);
