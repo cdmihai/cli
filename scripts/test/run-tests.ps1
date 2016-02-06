@@ -33,7 +33,9 @@ cp -rec -Force "$RepoRoot\test\TestProjects\*" "$TestBinRoot\TestProjects"
 $TestProjects | foreach {
     # This is a workaroudn for issue #1184, where dotnet test needs to be executed from the folder containing the project.json.
     pushd "$RepoRoot\test\$($_.ProjectName)"
-    dotnet test -xml "$TestBinRoot\$($_.ProjectName)-testResults.xml" -notrait category=failing
+    dotnet test -xml "$TestBinRoot\$($_.ProjectName)-testResults.xml" -notrait category=failing -method Microsoft.DotNet.Tools.Builder.Tests.ProjectToProjectDependenciesIncrementalTest.TestNoDependencyFlag
+    #& ".\corehost" --debug "xunit.console.netcore.exe" "$($_.ProjectName).dll" -xml "$($_.ProjectName)-testResults.xml" -notrait category=failing -method Microsoft.DotNet.Tools.Builder.Tests.ProjectToProjectDependenciesIncrementalTest.TestNoDependencyFlag
+
     popd
 
     $exitCode = $LastExitCode

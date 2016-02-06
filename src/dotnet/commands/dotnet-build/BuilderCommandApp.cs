@@ -9,7 +9,7 @@ namespace Microsoft.DotNet.Tools.Build
     {
         public const string BuildProfileFlag = "--build-profile";
         public const string ForceUnsafeFlag = "--no-incremental";
-        public const string NoDependenciesFlag = "--no-dependency";
+        public const string NoDependenciesFlag = "--no-dependencies";
 
         public bool BuildProfileValue => OptionHasValue(BuildProfileFlag);
         public bool ForceUnsafeValue => OptionHasValue(ForceUnsafeFlag);

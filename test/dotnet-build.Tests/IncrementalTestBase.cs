@@ -46,14 +46,17 @@ namespace Microsoft.DotNet.Tools.Builder.Tests
             File.SetLastWriteTimeUtc(file, DateTime.UtcNow);
         }
 
-        protected CommandResult BuildProject(bool noIncremental = false, bool expectBuildFailure = false)
+        protected CommandResult BuildProject(bool noDependencies = false, bool noIncremental = false, bool expectBuildFailure = false)
         {
             var outputDir = GetBinRoot();
             var intermediateOutputDir = Path.Combine(Directory.GetParent(outputDir).FullName, "obj", MainProject);
             var mainProjectFile = GetProjectFile(MainProject);
 
-            var buildCommand = new BuildCommand(mainProjectFile, output: outputDir, tempOutput: intermediateOutputDir ,noIncremental : noIncremental);
+            var buildCommand = new BuildCommand(mainProjectFile, output: outputDir, tempOutput: intermediateOutputDir, noIncremental : noIncremental, noDependencies : noDependencies);
             var result = buildCommand.ExecuteWithCapturedOutput();
+
+            Reporter.Output.WriteLine("foobar stdout ======\n" + result.StdOut);
+            Reporter.Output.WriteLine("foobar stderr ======\n" + result.StdErr);
 
             if (!expectBuildFailure)
             {
