@@ -20,6 +20,8 @@ namespace Microsoft.DotNet.Tools.Compiler
 
     public class CompilerCommandApp
     {
+        public static readonly string DependencyFragmentsFlag = "--dependency-fragment";
+
         private readonly CommandLineApplication _app;
 
         // options and arguments for compilation
@@ -30,6 +32,7 @@ namespace Microsoft.DotNet.Tools.Compiler
         private CommandOption _versionSuffixOption;
         private CommandOption _configurationOption;
         private CommandArgument _projectArgument;
+        private CommandOption _dependencyFragmentsOption;
         private CommandOption _nativeOption;
         private CommandOption _archOption;
         private CommandOption _ilcArgsOption;
@@ -46,6 +49,7 @@ namespace Microsoft.DotNet.Tools.Compiler
         public string OutputValue { get; set; }
         public string VersionSuffixValue { get; set; }
         public string ConfigValue { get; set; }
+        public IEnumerable<string> DependencyFragmentsValue { get; set; } 
         public bool IsNativeValue { get; set; }
         public string ArchValue { get; set; }
         public IEnumerable<string> IlcArgsValue { get; set; }
@@ -83,6 +87,7 @@ namespace Microsoft.DotNet.Tools.Compiler
             _configurationOption = _app.Option("-c|--configuration <CONFIGURATION>", "Configuration under which to build", CommandOptionType.SingleValue);
             _versionSuffixOption = _app.Option("--version-suffix <VERSION_SUFFIX>", "Defines what `*` should be replaced with in version field in project.json", CommandOptionType.SingleValue);
             _projectArgument = _app.Argument("<PROJECT>", "The project to compile, defaults to the current directory. Can be a path to a project.json or a project directory");
+            _dependencyFragmentsOption = _app.Option(DependencyFragmentsFlag, "Fragment lock files that should patch the master lock files used by build", CommandOptionType.MultipleValue);
 
             // Native Args
             _nativeOption = _app.Option("-n|--native", "Compiles source to native machine code.", CommandOptionType.NoValue);
@@ -117,6 +122,7 @@ namespace Microsoft.DotNet.Tools.Compiler
                 ConfigValue = _configurationOption.Value() ?? Constants.DefaultConfiguration;
                 RuntimeValue = _runtimeOption.Value();
                 VersionSuffixValue = _versionSuffixOption.Value();
+                DependencyFragmentsValue = _dependencyFragmentsOption.HasValue() ? _dependencyFragmentsOption.Values : Enumerable.Empty<string>();
 
                 IsNativeValue = _nativeOption.HasValue();
                 ArchValue = _archOption.Value();
@@ -136,7 +142,7 @@ namespace Microsoft.DotNet.Tools.Compiler
                 }
 
                 // Load the project file and construct all the targets
-                var targets = ProjectContext.CreateContextForEachFramework(ProjectPathValue, settings).ToList();
+                var targets = ProjectContext.CreateContextForEachFramework(ProjectPathValue, settings, dependencyFragments : DependencyFragmentsValue).ToList();
 
                 if (targets.Count == 0)
                 {
@@ -177,9 +183,9 @@ namespace Microsoft.DotNet.Tools.Compiler
         }
 
         // CommandOptionType is internal. Cannot pass it as argument. Therefore the method name encodes the option type.
-        protected void AddNoValueOption(string optionTemplate, string descriptino)
+        protected void AddNoValueOption(string optionTemplate, string description)
         {
-            baseClassOptions[optionTemplate] = _app.Option(optionTemplate, descriptino, CommandOptionType.NoValue);
+            baseClassOptions[optionTemplate] = _app.Option(optionTemplate, description, CommandOptionType.NoValue);
         }
 
         protected bool OptionHasValue(string optionTemplate)

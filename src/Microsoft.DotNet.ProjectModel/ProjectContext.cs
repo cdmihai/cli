@@ -98,7 +98,7 @@ namespace Microsoft.DotNet.ProjectModel
         /// <summary>
         /// Creates a project context for each framework located in the project at <paramref name="projectPath"/>
         /// </summary>
-        public static IEnumerable<ProjectContext> CreateContextForEachFramework(string projectPath, ProjectReaderSettings settings = null, IEnumerable<string> runtimeIdentifiers = null)
+        public static IEnumerable<ProjectContext> CreateContextForEachFramework(string projectPath, ProjectReaderSettings settings = null, IEnumerable<string> runtimeIdentifiers = null, IEnumerable<string> dependencyFragments = null)
         {
             if (!projectPath.EndsWith(Project.FileName))
             {
@@ -113,6 +113,7 @@ namespace Microsoft.DotNet.ProjectModel
                                 .WithTargetFramework(framework.FrameworkName)
                                 .WithReaderSettings(settings)
                                 .WithRuntimeIdentifiers(runtimeIdentifiers ?? Enumerable.Empty<string>())
+                                .WithDependencyFragments(dependencyFragments ?? Enumerable.Empty<string>())
                                 .Build();
             }
         }
@@ -151,7 +152,12 @@ namespace Microsoft.DotNet.ProjectModel
                 .Where(t => t.TargetFramework.Equals(TargetFramework))
                 .Any(t => !string.IsNullOrEmpty(t.RuntimeIdentifier));
 
-            var context = Create(ProjectFile.ProjectFilePath, TargetFramework, standalone ? runtimeIdentifiers : Enumerable.Empty<string>());
+            var contextBuilder = CreateBuilder(ProjectFile.ProjectFilePath, TargetFramework)
+                .WithRuntimeIdentifiers(standalone ? runtimeIdentifiers : Enumerable.Empty<string>())
+                .WithLockFile(LockFile);
+
+            var context = contextBuilder.Build();
+
             if (standalone && context.RuntimeIdentifier == null)
             {
                 // We are standalone, but don't support this runtime

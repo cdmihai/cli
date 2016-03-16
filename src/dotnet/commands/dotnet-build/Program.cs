@@ -36,11 +36,28 @@ namespace Microsoft.DotNet.Tools.Build
 
         private static bool OnExecute(List<ProjectContext> contexts, CompilerCommandApp args)
         {
-            var compileContexts = contexts.Select(context => new CompileContext(context, (BuilderCommandApp)args)).ToList();
+            var builderArgs = (BuilderCommandApp)args;
 
+            if (!ValidateArgs(builderArgs))
+            {
+                return false;
+            }
+
+            var compileContexts = contexts.Select(context => new CompileContext(context, builderArgs)).ToList();
             var incrementalSafe = compileContexts.All(c => c.IsSafeForIncrementalCompilation);
 
             return compileContexts.All(c => c.Compile(incrementalSafe));
+        }
+
+        private static bool ValidateArgs(BuilderCommandApp args)
+        {
+            if (args.DependencyFragmentsValue.Any() && !args.ShouldSkipDependencies)
+            {
+                Reporter.Error.WriteLine($"{CompilerCommandApp.DependencyFragmentsFlag} is valid only when {BuilderCommandApp.NoDependenciesFlag} is set");
+                return false;
+            }
+
+            return true;
         }
     }
 }

@@ -340,6 +340,12 @@ namespace Microsoft.DotNet.Tools.Build
                 args.Add(_args.OutputValue);
             }
 
+            foreach (var fragmentPath in _args.DependencyFragmentsValue)
+            {
+                args.Add(CompilerCommandApp.DependencyFragmentsFlag);
+                args.Add(fragmentPath);
+            }
+
             if (!string.IsNullOrEmpty(_args.VersionSuffixValue))
             {
                 args.Add("--version-suffix");

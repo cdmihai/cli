@@ -38,6 +38,8 @@ namespace Microsoft.DotNet.ProjectModel
 
         private ProjectReaderSettings Settings { get; set; } = ProjectReaderSettings.ReadFromEnvironment();
 
+        private IEnumerable<string> Dependencyfragments { get; set; }
+
         public ProjectContextBuilder()
         {
             ProjectResolver = ResolveProject;
@@ -116,6 +118,12 @@ namespace Microsoft.DotNet.ProjectModel
             return this;
         }
 
+        public ProjectContextBuilder WithDependencyFragments(IEnumerable<string> enumerable)
+        {
+            Dependencyfragments = enumerable;
+            return this;
+        }
+
         public IEnumerable<ProjectContext> BuildAllTargets()
         {
             ProjectDirectory = Project?.ProjectDirectory ?? ProjectDirectory;
@@ -160,6 +168,8 @@ namespace Microsoft.DotNet.ProjectModel
             EnsureProjectLoaded();
 
             LockFile = LockFile ?? LockFileResolver(ProjectDirectory);
+
+            PatchLockFile(LockFile);
 
             var validLockFile = true;
             string lockFileValidationMessage = null;
@@ -267,6 +277,16 @@ namespace Microsoft.DotNet.ProjectModel
                 PackagesDirectory,
                 libraryManager,
                 LockFile);
+        }
+
+        private void PatchLockFile(LockFile lockFile)
+        {
+            if (Dependencyfragments == null || !Dependencyfragments.Any())
+            {
+                return;
+            }
+
+            LockFilePatcher.PatchLockFile(lockFile, Dependencyfragments);
         }
 
         private void ResolveDependencies(Dictionary<LibraryKey, LibraryDescription> libraries,
