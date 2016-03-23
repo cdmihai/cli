@@ -87,7 +87,7 @@ namespace Microsoft.Extensions.DependencyModel
         {
             var type = export.Library.Identity.Type;
 
-            var serviceable = (export.Library as PackageDescription)?.Library.IsServiceable ?? false;
+            var serviceable = (export.Library as NugetPackageDescription)?.PackageLibrary.IsServiceable ?? false;
             var libraryDependencies = new HashSet<Dependency>();
 
             var libraryAssets = runtime ? export.RuntimeAssemblies : export.CompilationAssemblies;

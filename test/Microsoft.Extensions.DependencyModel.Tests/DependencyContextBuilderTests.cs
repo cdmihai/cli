@@ -100,7 +100,7 @@ namespace Microsoft.Extensions.DependencyModel.Tests
         {
             var context = Build(runtimeExports: new[]
             {
-                Export(PackageDescription("Pack.Age", servicable: true))
+                Export(NugetPackageDescription("Pack.Age", servicable: true))
             });
 
             var lib = context.RuntimeLibraries.Single();
@@ -112,7 +112,7 @@ namespace Microsoft.Extensions.DependencyModel.Tests
         {
             var context = Build(runtimeExports: new[]
             {
-                Export(PackageDescription("Pack.Age",
+                Export(NugetPackageDescription("Pack.Age",
                     servicable: true,
                     hash: "Hash",
                     version: new NuGetVersion(1, 2, 3),
@@ -179,7 +179,7 @@ namespace Microsoft.Extensions.DependencyModel.Tests
         {
             var context = Build(runtimeExports: new[]
               {
-                Export(PackageDescription("Pack.Age",
+                Export(NugetPackageDescription("Pack.Age",
                     dependencies: new[]
                     {
                         new LibraryRange("System.Collections",
@@ -208,7 +208,7 @@ namespace Microsoft.Extensions.DependencyModel.Tests
         {
             var context = Build(compilationExports: new[]
             {
-                Export(PackageDescription("Pack.Age",
+                Export(NugetPackageDescription("Pack.Age",
                     servicable: true,
                     hash: "Hash",
                     version: new NuGetVersion(1, 2, 3),
@@ -272,7 +272,7 @@ namespace Microsoft.Extensions.DependencyModel.Tests
         {
             var context = Build(compilationExports: new[]
             {
-                Export(PackageDescription("Pack.Age",
+                Export(NugetPackageDescription("Pack.Age",
                     dependencies: new[]
                     {
                         new LibraryRange("System.Collections",
@@ -304,14 +304,14 @@ namespace Microsoft.Extensions.DependencyModel.Tests
                 .Build();
         }
 
-        private PackageDescription PackageDescription(
+        private NugetPackageDescription NugetPackageDescription(
             string name = null,
             NuGetVersion version = null,
             string hash = null,
             IEnumerable<LibraryRange> dependencies = null,
             bool? servicable = null)
         {
-            return new PackageDescription(
+            return new NugetPackageDescription(
                 "PATH",
                 new LockFilePackageLibrary()
                 {

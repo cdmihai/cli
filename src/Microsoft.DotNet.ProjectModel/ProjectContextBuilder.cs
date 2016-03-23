@@ -192,8 +192,8 @@ namespace Microsoft.DotNet.ProjectModel
                 target = SelectTarget(LockFile);
                 if (target != null)
                 {
-                    var packageResolver = new PackageDependencyProvider(PackagesDirectory, frameworkReferenceResolver);
-                    ScanLibraries(target, lockFileLookup, libraries, packageResolver, projectResolver);
+                    var nugetPackageResolver = new PackageDependencyProvider(PackagesDirectory, frameworkReferenceResolver);
+                    ScanLibraries(target, lockFileLookup, libraries, nugetPackageResolver, projectResolver);
                 }
             }
 
@@ -283,7 +283,7 @@ namespace Microsoft.DotNet.ProjectModel
                 // The System.* packages provide placeholders on any non netstandard platform 
                 // To make them work seamlessly on those platforms, we fill the gap with a reference
                 // assembly (if available)
-                var package = library as PackageDescription;
+                var package = library as NugetPackageDescription;
                 if (package != null && package.Resolved && !package.CompileTimeAssemblies.Any())
                 {
                     var replacement = referenceAssemblyDependencyResolver.GetDescription(new LibraryRange(library.Identity.Name, LibraryType.ReferenceAssembly), TargetFramework);

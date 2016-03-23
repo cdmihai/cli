@@ -18,9 +18,9 @@ namespace Microsoft.DotNet.ProjectModel.Tests
     {
         private const string PackagePath = "PackagePath";
 
-        private PackageDescription CreateDescription(LockFileTargetLibrary target = null, LockFilePackageLibrary package = null)
+        private NugetPackageDescription CreateDescription(LockFileTargetLibrary target = null, LockFilePackageLibrary package = null)
         {
-            return new PackageDescription(PackagePath,
+            return new NugetPackageDescription(PackagePath,
                 package ?? new LockFilePackageLibrary(),
                 target ?? new LockFileTargetLibrary(),
                 new List<LibraryRange>(), compatible: true, resolved: true);

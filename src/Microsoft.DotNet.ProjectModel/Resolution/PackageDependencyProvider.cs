@@ -24,7 +24,7 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
             _frameworkReferenceResolver = frameworkReferenceResolver;
         }
 
-        public PackageDescription GetDescription(NuGetFramework targetFramework, LockFilePackageLibrary package, LockFileTargetLibrary targetLibrary)
+        public NugetPackageDescription GetDescription(NuGetFramework targetFramework, LockFilePackageLibrary package, LockFileTargetLibrary targetLibrary)
         {
             // If a NuGet dependency is supposed to provide assemblies but there is no assembly compatible with
             // current target framework, we should mark this dependency as unresolved
@@ -50,7 +50,7 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
                 PopulateLegacyPortableDependencies(targetFramework, dependencies, path, targetLibrary);
             }
 
-            var packageDescription = new PackageDescription(
+            var packageDescription = new NugetPackageDescription(
                 path,
                 package,
                 targetLibrary,
