@@ -65,11 +65,6 @@ namespace Microsoft.DotNet.ProjectModel.Graph
                 var export = exportDict[exportKey];
                 var librariesToPatch = _msbuildTargetLibraries[exportKey];
 
-                if (export.TargetFramework == null)
-                {
-                    throw new LockFilePatchingException($"Export library {export.Name} could not be resolved during nuget restore");
-                }
-
                 foreach (var libraryToPatch in librariesToPatch)
                 {
                     Patch(libraryToPatch, export);
