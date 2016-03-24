@@ -1,51 +1,61 @@
 ﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.DotNet.ProjectModel.Graph;
-using NuGet.Frameworks;
+using Microsoft.DotNet.ProjectModel.Resolution;
+using System;
 
 namespace Microsoft.DotNet.ProjectModel
 {
-    public abstract class PackageDescription : LibraryDescription
+    public class PackageDescription : TargetLibraryWithAssets
     {
         public PackageDescription(
-            LibraryIdentity libraryIdentity,
-            string sha512,
             string path,
+            LockFilePackageLibrary package,
             LockFileTargetLibrary lockFileLibrary,
             IEnumerable<LibraryRange> dependencies,
             bool compatible,
-            bool resolved,
-            NuGetFramework framework = null)
+            bool resolved)
             : base(
-                  libraryIdentity,
-                  sha512,
+                  new LibraryIdentity(package.Name, package.Version, LibraryType.Package),
+                  "sha512-" + package.Sha512,
                   path,
-                  dependencies: dependencies,
-                  framework: null,
+                  lockFileLibrary,
+                  dependencies,
                   resolved: resolved,
-                  compatible: compatible)
+                  compatible: compatible,
+                  framework: null)
         {
-            TargetLibrary = lockFileLibrary;
+            PackageLibrary = package;
         }
 
-        private LockFileTargetLibrary TargetLibrary { get; }
+        public LockFilePackageLibrary PackageLibrary { get; }
 
-        public virtual IEnumerable<LockFileItem> RuntimeAssemblies => TargetLibrary.RuntimeAssemblies;
+        public override IEnumerable<LockFileItem> RuntimeAssemblies => FilterPlaceholders(base.RuntimeAssemblies);
 
-        public virtual IEnumerable<LockFileItem> CompileTimeAssemblies => TargetLibrary.CompileTimeAssemblies;
+        public override IEnumerable<LockFileItem> CompileTimeAssemblies => FilterPlaceholders(base.CompileTimeAssemblies);
 
-        public virtual IEnumerable<LockFileItem> ResourceAssemblies => TargetLibrary.ResourceAssemblies;
+        private static IEnumerable<LockFileItem> FilterPlaceholders(IEnumerable<LockFileItem> items)
+        {
+            return items.Where(a => !PackageDependencyProvider.IsPlaceholderFile(a));
+        }
 
-        public virtual IEnumerable<LockFileItem> NativeLibraries => TargetLibrary.NativeLibraries;
+        public override IEnumerable<string> GetSharedSources()
+        {
+            return PackageLibrary
+                .Files
+                .Where(path => path.StartsWith("shared" + System.IO.Path.DirectorySeparatorChar));
+        }
 
-        public virtual IEnumerable<LockFileContentFile> ContentFiles => TargetLibrary.ContentFiles;
-
-        public virtual IEnumerable<LockFileRuntimeTarget> RuntimeTargets => TargetLibrary.RuntimeTargets;
-
-        public abstract IEnumerable<string> GetSharedSources();
-
-        public abstract IEnumerable<string> GetAnalyzerReferences();
+        public override IEnumerable<string> GetAnalyzerReferences()
+        {
+            return PackageLibrary
+                .Files
+                .Where(path => path.StartsWith("analyzers" + System.IO.Path.DirectorySeparatorChar) &&
+                               path.EndsWith(".dll"));
+        }
     }
 }

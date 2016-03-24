@@ -152,7 +152,7 @@ namespace Microsoft.DotNet.ProjectModel
             }
 
             RootDirectory = GlobalSettings?.DirectoryPath ?? RootDirectory;
-            PackagesDirectory = PackagesDirectory ?? NugetPackageDependencyProvider.ResolvePackagesPath(RootDirectory, GlobalSettings);
+            PackagesDirectory = PackagesDirectory ?? PackageDependencyProvider.ResolvePackagesPath(RootDirectory, GlobalSettings);
             ReferenceAssembliesPath = ReferenceAssembliesPath ?? FrameworkReferenceResolver.GetDefaultReferenceAssembliesPath();
             var frameworkReferenceResolver = new FrameworkReferenceResolver(ReferenceAssembliesPath);
 
@@ -192,7 +192,7 @@ namespace Microsoft.DotNet.ProjectModel
                 target = SelectTarget(LockFile);
                 if (target != null)
                 {
-                    var nugetPackageResolver = new NugetPackageDependencyProvider(PackagesDirectory, frameworkReferenceResolver);
+                    var nugetPackageResolver = new PackageDependencyProvider(PackagesDirectory, frameworkReferenceResolver);
                     var msbuildProjectResolver = new MSBuildDependencyProvider(ProjectResolver, frameworkReferenceResolver);
                     ScanLibraries(target, lockFileLookup, libraries, msbuildProjectResolver, nugetPackageResolver, projectResolver);
                 }
@@ -284,7 +284,7 @@ namespace Microsoft.DotNet.ProjectModel
                 // The System.* packages provide placeholders on any non netstandard platform 
                 // To make them work seamlessly on those platforms, we fill the gap with a reference
                 // assembly (if available)
-                var package = library as NugetPackageDescription;
+                var package = library as PackageDescription;
                 if (package != null && package.Resolved && !package.CompileTimeAssemblies.Any())
                 {
                     var replacement = referenceAssemblyDependencyResolver.GetDescription(new LibraryRange(library.Identity.Name, LibraryType.ReferenceAssembly), TargetFramework);
@@ -343,7 +343,7 @@ namespace Microsoft.DotNet.ProjectModel
             }
         }
 
-        private void ScanLibraries(LockFileTarget target, LockFileLookup lockFileLookup, Dictionary<LibraryKey, LibraryDescription> libraries, MSBuildDependencyProvider msbuildResolver, NugetPackageDependencyProvider nugetPackageResolver, ProjectDependencyProvider projectResolver)
+        private void ScanLibraries(LockFileTarget target, LockFileLookup lockFileLookup, Dictionary<LibraryKey, LibraryDescription> libraries, MSBuildDependencyProvider msbuildResolver, PackageDependencyProvider packageResolver, ProjectDependencyProvider projectResolver)
         {
             foreach (var library in target.Libraries)
             {
@@ -375,7 +375,7 @@ namespace Microsoft.DotNet.ProjectModel
 
                     if (packageEntry != null)
                     {
-                        description = nugetPackageResolver.GetDescription(TargetFramework, packageEntry, library);
+                        description = packageResolver.GetDescription(TargetFramework, packageEntry, library);
                     }
 
                     type = LibraryType.Package;

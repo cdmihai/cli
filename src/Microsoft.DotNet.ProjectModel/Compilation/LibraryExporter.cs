@@ -144,7 +144,7 @@ namespace Microsoft.DotNet.ProjectModel.Compilation
             var libraryType = library.Identity.Type;
             if (Equals(LibraryType.Package, libraryType) || Equals(LibraryType.MSBuildProject, libraryType))
             {
-                return ExportPackage((PackageDescription)library);
+                return ExportPackage((TargetLibraryWithAssets)library);
             }
             else if (Equals(LibraryType.Project, libraryType))
             {
@@ -156,22 +156,22 @@ namespace Microsoft.DotNet.ProjectModel.Compilation
             }
         }
 
-        private LibraryExport ExportPackage(PackageDescription package)
+        private LibraryExport ExportPackage(TargetLibraryWithAssets library)
         {
-            var builder = LibraryExportBuilder.Create(package);
-            builder.WithNativeLibraries(PopulateAssets(package, package.NativeLibraries));
-            builder.WithRuntimeAssemblies(PopulateAssets(package, package.RuntimeAssemblies));
-            builder.WithCompilationAssemblies(PopulateAssets(package, package.CompileTimeAssemblies));
-            builder.WithSourceReferences(GetSharedSources(package));
-            builder.WithAnalyzerReference(GetAnalyzerReferences(package));
+            var builder = LibraryExportBuilder.Create(library);
+            builder.WithNativeLibraries(PopulateAssets(library, library.NativeLibraries));
+            builder.WithRuntimeAssemblies(PopulateAssets(library, library.RuntimeAssemblies));
+            builder.WithCompilationAssemblies(PopulateAssets(library, library.CompileTimeAssemblies));
+            builder.WithSourceReferences(GetSharedSources(library));
+            builder.WithAnalyzerReference(GetAnalyzerReferences(library));
 
-            if (package.ContentFiles.Any())
+            if (library.ContentFiles.Any())
             {
                 var parameters = PPFileParameters.CreateForProject(_rootProject.Project);
                 Action<Stream, Stream> transform = (input, output) => PPFilePreprocessor.Preprocess(input, output, parameters);
 
                 var sourceCodeLanguage = _rootProject.Project.GetSourceCodeLanguage();
-                var languageGroups = package.ContentFiles.GroupBy(file => file.CodeLanguage);
+                var languageGroups = library.ContentFiles.GroupBy(file => file.CodeLanguage);
                 var selectedGroup = languageGroups.FirstOrDefault(g => g.Key == sourceCodeLanguage) ??
                                     languageGroups.FirstOrDefault(g => g.Key == null);
                 if (selectedGroup != null)
@@ -186,14 +186,14 @@ namespace Microsoft.DotNet.ProjectModel.Compilation
 
                         var fileTransform = contentFile.PPOutputPath != null ? transform : null;
 
-                        var fullPath = Path.Combine(package.Path, contentFile.Path);
+                        var fullPath = Path.Combine(library.Path, contentFile.Path);
                         if (contentFile.BuildAction == BuildAction.Compile)
                         {
-                            builder.AddSourceReference(LibraryAsset.CreateFromRelativePath(package.Path, contentFile.Path, fileTransform));
+                            builder.AddSourceReference(LibraryAsset.CreateFromRelativePath(library.Path, contentFile.Path, fileTransform));
                         }
                         else if (contentFile.BuildAction == BuildAction.EmbeddedResource)
                         {
-                            builder.AddEmbedddedResource(LibraryAsset.CreateFromRelativePath(package.Path, contentFile.Path, fileTransform));
+                            builder.AddEmbedddedResource(LibraryAsset.CreateFromRelativePath(library.Path, contentFile.Path, fileTransform));
                         }
                         if (contentFile.CopyToOutput)
                         {
@@ -202,9 +202,9 @@ namespace Microsoft.DotNet.ProjectModel.Compilation
                     }
                 }
             }
-            if (package.RuntimeTargets.Any())
+            if (library.RuntimeTargets.Any())
             {
-                foreach (var targetGroup in package.RuntimeTargets.GroupBy(t => t.Runtime))
+                foreach (var targetGroup in library.RuntimeTargets.GroupBy(t => t.Runtime))
                 {
                     var runtime = new List<LibraryAsset>();
                     var native = new List<LibraryAsset>();
@@ -213,11 +213,11 @@ namespace Microsoft.DotNet.ProjectModel.Compilation
                     {
                         if (string.Equals(lockFileRuntimeTarget.AssetType, "native", StringComparison.OrdinalIgnoreCase))
                         {
-                            native.Add(LibraryAsset.CreateFromRelativePath(package.Path, lockFileRuntimeTarget.Path));
+                            native.Add(LibraryAsset.CreateFromRelativePath(library.Path, lockFileRuntimeTarget.Path));
                         }
                         else if (string.Equals(lockFileRuntimeTarget.AssetType, "runtime", StringComparison.OrdinalIgnoreCase))
                         {
-                            runtime.Add(LibraryAsset.CreateFromRelativePath(package.Path, lockFileRuntimeTarget.Path));
+                            runtime.Add(LibraryAsset.CreateFromRelativePath(library.Path, lockFileRuntimeTarget.Path));
                         }
                     }
 
@@ -333,12 +333,12 @@ namespace Microsoft.DotNet.ProjectModel.Compilation
             return builder.Build();
         }
 
-        private IEnumerable<LibraryAsset> GetSharedSources(PackageDescription package)
+        private IEnumerable<LibraryAsset> GetSharedSources(TargetLibraryWithAssets library)
         {
-            return package.GetSharedSources().Select(path => LibraryAsset.CreateFromRelativePath(package.Path, path));
+            return library.GetSharedSources().Select(path => LibraryAsset.CreateFromRelativePath(library.Path, path));
         }
 
-        private IEnumerable<AnalyzerReference> GetAnalyzerReferences(PackageDescription package)
+        private IEnumerable<AnalyzerReference> GetAnalyzerReferences(TargetLibraryWithAssets package)
         {
             var analyzers = package.GetAnalyzerReferences();
 
@@ -402,11 +402,11 @@ namespace Microsoft.DotNet.ProjectModel.Compilation
             return analyzerRefs;
         }
 
-        private IEnumerable<LibraryAsset> PopulateAssets(PackageDescription nugetPackage, IEnumerable<LockFileItem> section)
+        private IEnumerable<LibraryAsset> PopulateAssets(TargetLibraryWithAssets library, IEnumerable<LockFileItem> section)
         {
             foreach (var assemblyPath in section)
             {
-                yield return LibraryAsset.CreateFromRelativePath(nugetPackage.Path, assemblyPath.Path);
+                yield return LibraryAsset.CreateFromRelativePath(library.Path, assemblyPath.Path);
             }
         }
 

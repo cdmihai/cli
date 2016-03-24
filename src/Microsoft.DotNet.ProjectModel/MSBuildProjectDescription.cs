@@ -12,7 +12,7 @@ namespace Microsoft.DotNet.ProjectModel
     /// Represents an MSBuild project.
     /// It has been invisibly built by MSBuild, so it behaves like a package: can provide all assets up front
     /// </summary>
-    public class MSBuildProjectDescription : PackageDescription
+    public class MSBuildProjectDescription : TargetLibraryWithAssets
     {
         public MSBuildProjectDescription(
             string path,

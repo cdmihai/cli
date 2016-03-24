@@ -153,7 +153,15 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
 
         public static bool IsMSBuildProjectLibrary(LockFileProjectLibrary projectLibrary)
         {
-            return !string.IsNullOrEmpty(projectLibrary.MSBuildProject);
+            var msbuildProjectPath = projectLibrary.MSBuildProject;
+            if (msbuildProjectPath == null)
+            {
+                return false;
+            }
+
+            var extension = Path.GetExtension(msbuildProjectPath);
+
+            return !string.Equals(extension, ".xproj", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

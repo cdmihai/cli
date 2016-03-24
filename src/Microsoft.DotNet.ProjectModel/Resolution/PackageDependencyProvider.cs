@@ -13,18 +13,18 @@ using NuGet.Packaging;
 
 namespace Microsoft.DotNet.ProjectModel.Resolution
 {
-    public class NugetPackageDependencyProvider
+    public class PackageDependencyProvider
     {
         private readonly VersionFolderPathResolver _packagePathResolver;
         private readonly FrameworkReferenceResolver _frameworkReferenceResolver;
 
-        public NugetPackageDependencyProvider(string packagesPath, FrameworkReferenceResolver frameworkReferenceResolver)
+        public PackageDependencyProvider(string packagesPath, FrameworkReferenceResolver frameworkReferenceResolver)
         {
             _packagePathResolver = new VersionFolderPathResolver(packagesPath);
             _frameworkReferenceResolver = frameworkReferenceResolver;
         }
 
-        public NugetPackageDescription GetDescription(NuGetFramework targetFramework, LockFilePackageLibrary package, LockFileTargetLibrary targetLibrary)
+        public PackageDescription GetDescription(NuGetFramework targetFramework, LockFilePackageLibrary package, LockFileTargetLibrary targetLibrary)
         {
             // If a NuGet dependency is supposed to provide assemblies but there is no assembly compatible with
             // current target framework, we should mark this dependency as unresolved
@@ -50,7 +50,7 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
                 PopulateLegacyPortableDependencies(targetFramework, dependencies, path, targetLibrary);
             }
 
-            var packageDescription = new NugetPackageDescription(
+            var packageDescription = new PackageDescription(
                 path,
                 package,
                 targetLibrary,
