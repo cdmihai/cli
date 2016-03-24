@@ -7,7 +7,7 @@ using NuGet.Frameworks;
 
 namespace Microsoft.DotNet.ProjectModel
 {
-    public class PackageDescription : LibraryDescription
+    public abstract class PackageDescription : LibraryDescription
     {
         public PackageDescription(
             LibraryIdentity libraryIdentity,
@@ -43,5 +43,9 @@ namespace Microsoft.DotNet.ProjectModel
         public virtual IEnumerable<LockFileContentFile> ContentFiles => TargetLibrary.ContentFiles;
 
         public virtual IEnumerable<LockFileRuntimeTarget> RuntimeTargets => TargetLibrary.RuntimeTargets;
+
+        public abstract IEnumerable<string> GetSharedSources();
+
+        public abstract IEnumerable<string> GetAnalyzerReferences();
     }
 }

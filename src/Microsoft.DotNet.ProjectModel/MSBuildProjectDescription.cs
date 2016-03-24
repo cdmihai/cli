@@ -1,7 +1,9 @@
 ﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.DotNet.ProjectModel.Graph;
 
 namespace Microsoft.DotNet.ProjectModel
@@ -33,5 +35,15 @@ namespace Microsoft.DotNet.ProjectModel
         }
 
         public LockFileProjectLibrary ProjectLibrary { get; }
+
+        public override IEnumerable<string> GetSharedSources()
+        {
+            return Enumerable.Empty<string>();
+        }
+
+        public override IEnumerable<string> GetAnalyzerReferences()
+        {
+            return Enumerable.Empty<string>();
+        }
     }
 }
