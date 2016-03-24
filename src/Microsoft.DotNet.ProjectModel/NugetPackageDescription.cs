@@ -39,7 +39,7 @@ namespace Microsoft.DotNet.ProjectModel
 
         private static IEnumerable<LockFileItem> FilterPlaceholders(IEnumerable<LockFileItem> items)
         {
-            return items.Where(a => !PackageDependencyProvider.IsPlaceholderFile(a));
+            return items.Where(a => !NugetPackageDependencyProvider.IsPlaceholderFile(a));
         }
     }
 }

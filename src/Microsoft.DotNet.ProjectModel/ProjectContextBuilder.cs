@@ -152,7 +152,7 @@ namespace Microsoft.DotNet.ProjectModel
             }
 
             RootDirectory = GlobalSettings?.DirectoryPath ?? RootDirectory;
-            PackagesDirectory = PackagesDirectory ?? PackageDependencyProvider.ResolvePackagesPath(RootDirectory, GlobalSettings);
+            PackagesDirectory = PackagesDirectory ?? NugetPackageDependencyProvider.ResolvePackagesPath(RootDirectory, GlobalSettings);
             ReferenceAssembliesPath = ReferenceAssembliesPath ?? FrameworkReferenceResolver.GetDefaultReferenceAssembliesPath();
             var frameworkReferenceResolver = new FrameworkReferenceResolver(ReferenceAssembliesPath);
 
@@ -192,8 +192,9 @@ namespace Microsoft.DotNet.ProjectModel
                 target = SelectTarget(LockFile);
                 if (target != null)
                 {
-                    var nugetPackageResolver = new PackageDependencyProvider(PackagesDirectory, frameworkReferenceResolver);
-                    ScanLibraries(target, lockFileLookup, libraries, nugetPackageResolver, projectResolver);
+                    var nugetPackageResolver = new NugetPackageDependencyProvider(PackagesDirectory, frameworkReferenceResolver);
+                    var msbuildProjectResolver = new MSBuildDependencyProvider(frameworkReferenceResolver);
+                    ScanLibraries(target, lockFileLookup, libraries, msbuildProjectResolver, nugetPackageResolver, projectResolver);
                 }
             }
 
@@ -342,7 +343,7 @@ namespace Microsoft.DotNet.ProjectModel
             }
         }
 
-        private void ScanLibraries(LockFileTarget target, LockFileLookup lockFileLookup, Dictionary<LibraryKey, LibraryDescription> libraries, PackageDependencyProvider packageResolver, ProjectDependencyProvider projectDependencyProvider)
+        private void ScanLibraries(LockFileTarget target, LockFileLookup lockFileLookup, Dictionary<LibraryKey, LibraryDescription> libraries, MSBuildDependencyProvider msbuildResolver, NugetPackageDependencyProvider nugetPackageResolver, ProjectDependencyProvider projectResolver)
         {
             foreach (var library in target.Libraries)
             {
@@ -355,11 +356,18 @@ namespace Microsoft.DotNet.ProjectModel
 
                     if (projectLibrary != null)
                     {
-                        var path = Path.GetFullPath(Path.Combine(ProjectDirectory, projectLibrary.Path));
-                        description = projectDependencyProvider.GetDescription(library.Name, path, library, ProjectResolver);
+                        if (MSBuildDependencyProvider.IsMSBuildProjectLibrary(projectLibrary))
+                        {
+                            description = msbuildResolver.GetDescription(TargetFramework, projectLibrary, library);
+                            type = LibraryType.MSBuildProject;
+                        }
+                        else
+                        {
+                            var path = Path.GetFullPath(Path.Combine(ProjectDirectory, projectLibrary.Path));
+                            description = projectResolver.GetDescription(library.Name, path, library, ProjectResolver);
+                            type = LibraryType.Project;
+                        }
                     }
-
-                    type = LibraryType.Project;
                 }
                 else
                 {
@@ -367,7 +375,7 @@ namespace Microsoft.DotNet.ProjectModel
 
                     if (packageEntry != null)
                     {
-                        description = packageResolver.GetDescription(TargetFramework, packageEntry, library);
+                        description = nugetPackageResolver.GetDescription(TargetFramework, packageEntry, library);
                     }
 
                     type = LibraryType.Package;

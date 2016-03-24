@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.DotNet.ProjectModel.Resolution;
 
 namespace Microsoft.DotNet.ProjectModel.Graph
 {
@@ -17,7 +18,7 @@ namespace Microsoft.DotNet.ProjectModel.Graph
         {
             _lockFile = lockFile;
 
-            var msbuildProjectLibraries = lockFile.ProjectLibraries.Where(IsMSBuildProjectLibrary);
+            var msbuildProjectLibraries = lockFile.ProjectLibraries.Where(MSBuildDependencyProvider.IsMSBuildProjectLibrary);
             _msbuildTargetLibraries = msbuildProjectLibraries.ToDictionary(GetProjectLibraryKey, l => GetTargetsForLibrary(_lockFile, l));
         }
 
@@ -88,13 +89,7 @@ namespace Microsoft.DotNet.ProjectModel.Graph
             libraryToPatch.RuntimeAssemblies = export.RuntimeAssemblies;
         }
 
-        private static bool IsMSBuildProjectLibrary(LockFileProjectLibrary projectLibrary)
-        {
-            var hasMSbuildProjectValue = !string.IsNullOrEmpty(projectLibrary.MSBuildProject);
-            var doesNotHavePathValue = string.IsNullOrEmpty(projectLibrary.Path);
-
-            return doesNotHavePathValue && hasMSbuildProjectValue;
-        }
+        
 
         private static IList<LockFileTargetLibrary> GetTargetsForLibrary(LockFile lockFile, LockFileProjectLibrary library)
         {

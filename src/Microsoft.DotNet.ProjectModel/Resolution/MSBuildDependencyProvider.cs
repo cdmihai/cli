@@ -9,38 +9,28 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using Microsoft.DotNet.ProjectModel.Graph;
 using NuGet.Frameworks;
-using NuGet.Packaging;
 
 namespace Microsoft.DotNet.ProjectModel.Resolution
 {
-    public class PackageDependencyProvider
+    public class MSBuildDependencyProvider
     {
-        private readonly VersionFolderPathResolver _packagePathResolver;
         private readonly FrameworkReferenceResolver _frameworkReferenceResolver;
 
-        public PackageDependencyProvider(string packagesPath, FrameworkReferenceResolver frameworkReferenceResolver)
+        public MSBuildDependencyProvider(FrameworkReferenceResolver frameworkReferenceResolver)
         {
-            _packagePathResolver = new VersionFolderPathResolver(packagesPath);
             _frameworkReferenceResolver = frameworkReferenceResolver;
         }
 
-        public NugetPackageDescription GetDescription(NuGetFramework targetFramework, LockFilePackageLibrary package, LockFileTargetLibrary targetLibrary)
+        public MSBuildProjectDescription GetDescription(NuGetFramework targetFramework, LockFileProjectLibrary projectLibrary, LockFileTargetLibrary targetLibrary)
         {
-            // If a NuGet dependency is supposed to provide assemblies but there is no assembly compatible with
-            // current target framework, we should mark this dependency as unresolved
-            var containsAssembly = package.Files
-                .Any(x => x.StartsWith($"ref{Path.DirectorySeparatorChar}") ||
-                    x.StartsWith($"lib{Path.DirectorySeparatorChar}"));
-
             var compatible = targetLibrary.FrameworkAssemblies.Any() ||
-                targetLibrary.CompileTimeAssemblies.Any() ||
-                targetLibrary.RuntimeAssemblies.Any() ||
-                !containsAssembly;
+                             targetLibrary.CompileTimeAssemblies.Any() ||
+                             targetLibrary.RuntimeAssemblies.Any();
 
             var dependencies = new List<LibraryRange>(targetLibrary.Dependencies.Count + targetLibrary.FrameworkAssemblies.Count);
             PopulateDependencies(dependencies, targetLibrary, targetFramework);
 
-            var path = _packagePathResolver.GetInstallPath(package.Name, package.Version);
+            var path = Path.GetDirectoryName(Path.GetFullPath(projectLibrary.MSBuildProject));
             var exists = Directory.Exists(path);
 
             if (exists)
@@ -50,15 +40,15 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
                 PopulateLegacyPortableDependencies(targetFramework, dependencies, path, targetLibrary);
             }
 
-            var packageDescription = new NugetPackageDescription(
+            var msbuildPackageDescription = new MSBuildProjectDescription(
                 path,
-                package,
+                projectLibrary,
                 targetLibrary,
                 dependencies,
                 compatible,
                 resolved: compatible && exists);
 
-            return packageDescription;
+            return msbuildPackageDescription;
         }
 
         private void PopulateLegacyPortableDependencies(NuGetFramework targetFramework, List<LibraryRange> dependencies, string packagePath, LockFileTargetLibrary targetLibrary)
@@ -156,34 +146,12 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
             return string.Equals(Path.GetFileName(path), "_._", StringComparison.Ordinal);
         }
 
-        public static string ResolvePackagesPath(string rootDirectory, GlobalSettings settings)
+        public static bool IsMSBuildProjectLibrary(LockFileProjectLibrary projectLibrary)
         {
-            // Order
-            // 1. global.json { "packages": "..." }
-            // 2. EnvironmentNames.PackagesStore environment variable
-            // 3. NuGet.config repositoryPath (maybe)?
-            // 4. {DefaultLocalRuntimeHomeDir}\packages
+            var hasMSbuildProjectValue = !string.IsNullOrEmpty(projectLibrary.MSBuildProject);
+            var doesNotHavePathValue = string.IsNullOrEmpty(projectLibrary.Path);
 
-            if (!string.IsNullOrEmpty(settings?.PackagesPath))
-            {
-                return Path.Combine(rootDirectory, settings.PackagesPath);
-            }
-
-            var runtimePackages = Environment.GetEnvironmentVariable(EnvironmentNames.PackagesStore);
-
-            if (!string.IsNullOrEmpty(runtimePackages))
-            {
-                return runtimePackages;
-            }
-
-            var profileDirectory = Environment.GetEnvironmentVariable("USERPROFILE");
-
-            if (string.IsNullOrEmpty(profileDirectory))
-            {
-                profileDirectory = Environment.GetEnvironmentVariable("HOME");
-            }
-
-            return Path.Combine(profileDirectory, ".nuget", "packages");
+            return doesNotHavePathValue && hasMSbuildProjectValue;
         }
     }
 }

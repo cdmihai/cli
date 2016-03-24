@@ -9,12 +9,12 @@ using Xunit;
 
 namespace Microsoft.DotNet.ProjectModel.Tests
 {
-    public class PackageDependencyProviderTests : TestBase
+    public class NugetPackageDependencyProviderTests : TestBase
     {
         [Fact]
         public void GetDescriptionShouldNotModifyTarget()
         {
-            var provider = new PackageDependencyProvider("/foo/packages", new FrameworkReferenceResolver("/foo/references"));
+            var provider = new NugetPackageDependencyProvider("/foo/packages", new FrameworkReferenceResolver("/foo/references"));
             var package = new LockFilePackageLibrary();
             package.Name = "Something";
             package.Version = NuGetVersion.Parse("1.0.0");
