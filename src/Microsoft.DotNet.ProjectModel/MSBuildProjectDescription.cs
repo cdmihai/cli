@@ -18,6 +18,7 @@ namespace Microsoft.DotNet.ProjectModel
             string path,
             LockFileProjectLibrary projectLibrary,
             LockFileTargetLibrary lockFileLibrary,
+            Project projectFile,
             IEnumerable<LibraryRange> dependencies,
             bool compatible,
             bool resolved)
@@ -31,10 +32,13 @@ namespace Microsoft.DotNet.ProjectModel
                   compatible: compatible,
                   framework: null)
         {
+            ProjectFile = projectFile;
             ProjectLibrary = projectLibrary;
         }
 
         public LockFileProjectLibrary ProjectLibrary { get; }
+
+        public Project ProjectFile { get; }
 
         public override IEnumerable<string> GetSharedSources()
         {

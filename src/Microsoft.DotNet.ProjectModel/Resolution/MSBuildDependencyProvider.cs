@@ -14,10 +14,12 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
 {
     public class MSBuildDependencyProvider
     {
+        private readonly Func<string, Project> _projectResolver;
         private readonly FrameworkReferenceResolver _frameworkReferenceResolver;
 
-        public MSBuildDependencyProvider(FrameworkReferenceResolver frameworkReferenceResolver)
+        public MSBuildDependencyProvider(Func<string, Project> projectResolver, FrameworkReferenceResolver frameworkReferenceResolver)
         {
+            _projectResolver = projectResolver;
             _frameworkReferenceResolver = frameworkReferenceResolver;
         }
 
@@ -40,10 +42,13 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
                 PopulateLegacyPortableDependencies(targetFramework, dependencies, path, targetLibrary);
             }
 
+            var projectFile = projectLibrary.Path == null ? null : _projectResolver(projectLibrary.Path);
+
             var msbuildPackageDescription = new MSBuildProjectDescription(
                 path,
                 projectLibrary,
                 targetLibrary,
+                projectFile,
                 dependencies,
                 compatible,
                 resolved: compatible && exists);
