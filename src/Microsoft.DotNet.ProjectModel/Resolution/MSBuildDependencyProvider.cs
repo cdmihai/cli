@@ -153,10 +153,7 @@ namespace Microsoft.DotNet.ProjectModel.Resolution
 
         public static bool IsMSBuildProjectLibrary(LockFileProjectLibrary projectLibrary)
         {
-            var hasMSbuildProjectValue = !string.IsNullOrEmpty(projectLibrary.MSBuildProject);
-            var doesNotHavePathValue = string.IsNullOrEmpty(projectLibrary.Path);
-
-            return doesNotHavePathValue && hasMSbuildProjectValue;
+            return !string.IsNullOrEmpty(projectLibrary.MSBuildProject);
         }
     }
 }
