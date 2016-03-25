@@ -193,7 +193,7 @@ namespace Microsoft.DotNet.ProjectModel
                 if (target != null)
                 {
                     var nugetPackageResolver = new PackageDependencyProvider(PackagesDirectory, frameworkReferenceResolver);
-                    var msbuildProjectResolver = new MSBuildDependencyProvider(ProjectResolver, frameworkReferenceResolver);
+                    var msbuildProjectResolver = new MSBuildDependencyProvider(ProjectResolver);
                     ScanLibraries(target, lockFileLookup, libraries, msbuildProjectResolver, nugetPackageResolver, projectResolver);
                 }
             }
