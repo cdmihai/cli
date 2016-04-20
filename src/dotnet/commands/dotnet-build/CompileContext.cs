@@ -27,6 +27,7 @@ namespace Microsoft.DotNet.Tools.Build
         private readonly ProjectDependenciesFacade _rootProjectDependencies;
         private readonly BuilderCommandApp _args;
         private readonly IncrementalPreconditions _preconditions;
+        private IncrementalManager _incrementalManager;
 
         public bool IsSafeForIncrementalCompilation => !_preconditions.PreconditionsDetected();
 
@@ -43,6 +44,8 @@ namespace Microsoft.DotNet.Tools.Build
 
             // gather preconditions
             _preconditions = GatherIncrementalPreconditions();
+
+            _incrementalManager = new IncrementalManager(_rootProject, _args);
         }
 
         public bool Compile(bool incremental)
@@ -56,7 +59,7 @@ namespace Microsoft.DotNet.Tools.Build
         {
             try
             {
-                if (incremental && !NeedsRebuilding(_rootProject, _rootProjectDependencies))
+                if (incremental && !NeedsRebuild(_rootProject, _rootProjectDependencies))
                 {
                     return true;
                 }
@@ -86,7 +89,7 @@ namespace Microsoft.DotNet.Tools.Build
 
                 try
                 {
-                    if (incremental && !NeedsRebuilding(dependencyProjectContext, new ProjectDependenciesFacade(dependencyProjectContext, _args.ConfigValue)))
+                    if (incremental && !NeedsRebuild(dependencyProjectContext, new ProjectDependenciesFacade(dependencyProjectContext, _args.ConfigValue)))
                     {
                         continue;
                     }
@@ -105,188 +108,30 @@ namespace Microsoft.DotNet.Tools.Build
             return true;
         }
 
-        private bool NeedsRebuilding(ProjectContext project, ProjectDependenciesFacade dependencies)
+        private bool NeedsRebuild(ProjectContext project, ProjectDependenciesFacade projectDependenciesFacade)
         {
-            var needsRebuilding = false;
-            var compilerIO = GetCompileIO(project, dependencies);
+            var result = _incrementalManager.NeedsRebuilding(project, projectDependenciesFacade);
 
-            needsRebuilding |= CLIChanged(project);
-            needsRebuilding |= InputItemsChanged(project, compilerIO);
-            needsRebuilding |= TimestampsChanged(project, compilerIO);
+            PrintIncrementalResult(project, result);
 
-            return needsRebuilding;
+            return result.NeedsRebuild;
         }
 
-        private bool CLIChanged(ProjectContext project)
+        private void PrintIncrementalResult(ProjectContext project, IncrementalResult result)
         {
-            var currentVersionFile = DotnetFiles.VersionFile;
-            var versionFileFromLastCompile = project.GetSDKVersionFile(_args.ConfigValue, _args.BuildBasePathValue, _args.OutputValue);
-
-            if (!File.Exists(currentVersionFile))
+            if (result.NeedsRebuild)
             {
-                // this CLI does not have a version file; cannot tell if CLI changed
-                return false;
+                Reporter.Output.WriteLine($"Project {project.GetDisplayName()} will be compiled because {result.Reason}");
+                foreach (var item in result.Items)
+                {
+                    Reporter.Verbose.WriteLine($"\t{item}");
+                }
             }
-
-            if (!File.Exists(versionFileFromLastCompile))
-            {
-                // this is the first compilation; cannot tell if CLI changed
-                return false;
-            }
-
-            var currentContent = ComputeCurrentVersionFileData();
-
-            var versionsAreEqual = string.Equals(currentContent, File.ReadAllText(versionFileFromLastCompile), StringComparison.OrdinalIgnoreCase);
-
-            if (versionsAreEqual)
-            {
-                return false;
-            }
-
-            Reporter.Output.WriteLine($"Project {project.GetDisplayName()} will be compiled because the version or bitness of the CLI changed since the last build");
-            return true;
-        }
-
-        private bool InputItemsChanged(ProjectContext project, CompilerIO compilerIO)
-        {
-            var incrementalCacheFile = project.IncrementalCacheFile(_args.ConfigValue, _args.BuildBasePathValue, _args.OutputValue);
-
-            if (!File.Exists(incrementalCacheFile))
-            {
-                IncrementalCache.WriteToFile(incrementalCacheFile, new IncrementalCache(compilerIO));
-
-                // no cache present; cannot tell if anything changed
-                return false;
-            }
-
-            var incrementalCache = IncrementalCache.ReadFromFile(incrementalCacheFile);
-
-            var diffResult = compilerIO.DiffInputs(incrementalCache.CompilerIO);
-
-            if (diffResult.Additions.Any() || diffResult.Deletions.Any())
-            {
-                Reporter.Output.WriteLine($"Project {project.GetDisplayName()} will be compiled because the list of input items changed.");
-                PrintItemList("Added Items", diffResult.Additions);
-                PrintItemList("Removed Items", diffResult.Deletions);
-
-                return true;
-            }
-
-            return false;
-        }
-
-        private void PrintItemList(string itemDescription, IEnumerable<string> items)
-        {
-            Reporter.Verbose.WriteLine($"\t{itemDescription}:");
-
-            foreach (var item in items)
-            {
-                Reporter.Verbose.WriteLine($"\t\t{item}");
-            }
-        }
-
-        private static bool TimestampsChanged(ProjectContext project, CompilerIO compilerIO)
-        {
-            // rebuild if empty inputs / outputs
-            if (!(compilerIO.Outputs.Any() && compilerIO.Inputs.Any()))
+            else
             {
                 Reporter.Output.WriteLine(
-                    $"Project {project.GetDisplayName()} will be compiled because it either has empty inputs or outputs");
-                return true;
+                    $"Project {project.GetDisplayName()} was previously compiled. Skipping compilation.");
             }
-
-            //rebuild if missing inputs / outputs
-            if (AnyMissingIO(project, compilerIO.Outputs, "outputs") || AnyMissingIO(project, compilerIO.Inputs, "inputs"))
-            {
-                return true;
-            }
-
-            // find the output with the earliest write time
-            var minOutputPath = compilerIO.Outputs.First();
-            var minDateUtc = File.GetLastWriteTimeUtc(minOutputPath);
-
-            foreach (var outputPath in compilerIO.Outputs)
-            {
-                if (File.GetLastWriteTimeUtc(outputPath) >= minDateUtc)
-                {
-                    continue;
-                }
-
-                minDateUtc = File.GetLastWriteTimeUtc(outputPath);
-                minOutputPath = outputPath;
-            }
-
-            // find inputs that are older than the earliest output
-            var newInputs = compilerIO.Inputs.Where(p => File.GetLastWriteTimeUtc(p) >= minDateUtc);
-
-            if (!newInputs.Any())
-            {
-                Reporter.Output.WriteLine($"Project {project.GetDisplayName()} was previously compiled. Skipping compilation.");
-                return false;
-            }
-
-            Reporter.Output.WriteLine(
-                $"Project {project.GetDisplayName()} will be compiled because some of its inputs were newer than its oldest output.");
-            Reporter.Verbose.WriteLine();
-            Reporter.Verbose.WriteLine($" Oldest output item:");
-            Reporter.Verbose.WriteLine($"  {minDateUtc.ToLocalTime()}: {minOutputPath}");
-            Reporter.Verbose.WriteLine();
-
-            Reporter.Verbose.WriteLine($" Inputs newer than the oldest output item:");
-
-            foreach (var newInput in newInputs)
-            {
-                Reporter.Verbose.WriteLine($"  {File.GetLastWriteTime(newInput)}: {newInput}");
-            }
-
-            Reporter.Verbose.WriteLine();
-
-            return true;
-        }
-
-        private static bool AnyMissingIO(ProjectContext project, IEnumerable<string> items, string itemsType)
-        {
-            var missingItems = items.Where(i => !File.Exists(i)).ToList();
-
-            if (!missingItems.Any())
-            {
-                return false;
-            }
-
-            Reporter.Verbose.WriteLine($"Project {project.GetDisplayName()} will be compiled because expected {itemsType} are missing.");
-
-            foreach (var missing in missingItems)
-            {
-                Reporter.Verbose.WriteLine($" {missing}");
-            }
-
-            Reporter.Verbose.WriteLine(); ;
-
-            return true;
-        }
-
-        private bool CLIChangedSinceLastCompilation(ProjectContext project)
-        {
-            var currentVersionFile = DotnetFiles.VersionFile;
-            var versionFileFromLastCompile = project.GetSDKVersionFile(_args.ConfigValue, _args.BuildBasePathValue, _args.OutputValue);
-
-            if (!File.Exists(currentVersionFile))
-            {
-                // this CLI does not have a version file; cannot tell if CLI changed
-                return false;
-            }
-
-            if (!File.Exists(versionFileFromLastCompile))
-            {
-                // this is the first compilation; cannot tell if CLI changed
-                return false;
-            }
-
-            var currentContent = ComputeCurrentVersionFileData();
-
-            var versionsAreEqual = string.Equals(currentContent, File.ReadAllText(versionFileFromLastCompile), StringComparison.OrdinalIgnoreCase);
-
-            return !versionsAreEqual;
         }
 
         private void StampProjectWithSDKVersion(ProjectContext project)
@@ -301,7 +146,7 @@ namespace Microsoft.DotNet.Tools.Build
                     Directory.CreateDirectory(parentDirectory);
                 }
 
-                string content = ComputeCurrentVersionFileData();
+                string content = DotnetFiles.ReadAndInterpretVersionFile();
 
                 File.WriteAllText(projectVersionFile, content);
             }
@@ -309,14 +154,6 @@ namespace Microsoft.DotNet.Tools.Build
             {
                 Reporter.Verbose.WriteLine($"Project {project.GetDisplayName()} was not stamped with a CLI version because the version file does not exist: {DotnetFiles.VersionFile}");
             }
-        }
-
-        private static string ComputeCurrentVersionFileData()
-        {
-            var content = File.ReadAllText(DotnetFiles.VersionFile);
-            content += Environment.NewLine;
-            content += PlatformServices.Default.Runtime.GetRuntimeIdentifier();
-            return content;
         }
 
         private void PrintSummary(bool success)
@@ -623,126 +460,6 @@ namespace Microsoft.DotNet.Tools.Build
         {
             public bool Equals(ProjectDescription x, ProjectDescription y) => string.Equals(x.Identity.Name, y.Identity.Name, StringComparison.Ordinal);
             public int GetHashCode(ProjectDescription obj) => obj.Identity.Name.GetHashCode();
-        }
-
-        // computes all the inputs and outputs that would be used in the compilation of a project
-        // ensures that all paths are files
-        // ensures no missing inputs
-        public CompilerIO GetCompileIO(ProjectContext project, ProjectDependenciesFacade dependencies)
-        {
-            var inputs = new List<string>();
-            var outputs = new List<string>();
-
-
-            var buildConfiguration = _args.ConfigValue;
-            var buildBasePath = _args.BuildBasePathValue;
-            var outputPath = _args.OutputValue;
-            var isRootProject = project == _rootProject;
-            
-            var calculator = project.GetOutputPaths(buildConfiguration, buildBasePath, outputPath);
-            var binariesOutputPath = calculator.CompilationOutputPath;
-
-            // input: project.json
-            inputs.Add(project.ProjectFile.ProjectFilePath);
-
-            // input: lock file; find when dependencies change
-            AddLockFile(project, inputs);
-
-            // input: source files
-            inputs.AddRange(CompilerUtil.GetCompilationSources(project));
-
-            // todo: Factor out dependency resolution between Build and Compile. Ideally Build injects the dependencies into Compile
-            // input: dependencies
-            AddDependencies(dependencies, inputs);
-
-            var allOutputPath = new HashSet<string>(calculator.CompilationFiles.All());
-            if (isRootProject && project.ProjectFile.HasRuntimeOutput(buildConfiguration))
-            {
-                var runtimeContext = project.CreateRuntimeContext(_args.GetRuntimes());
-                foreach (var path in runtimeContext.GetOutputPaths(buildConfiguration, buildBasePath, outputPath).RuntimeFiles.All())
-                {
-                    allOutputPath.Add(path);
-                }
-            }
-
-            // output: compiler outputs
-            foreach (var path in allOutputPath)
-            {
-                outputs.Add(path);
-            }
-
-            // input compilation options files
-            AddCompilationOptions(project, buildConfiguration, inputs);
-
-            // input / output: resources with culture
-            AddNonCultureResources(project, calculator.IntermediateOutputDirectoryPath, inputs, outputs);
-
-            // input / output: resources without culture
-            AddCultureResources(project, binariesOutputPath, inputs, outputs);
-
-            return new CompilerIO(inputs, outputs);
-        }
-
-        private static void AddLockFile(ProjectContext project, List<string> inputs)
-        {
-            if (project.LockFile == null)
-            {
-                var errorMessage = $"Project {project.ProjectName()} does not have a lock file.";
-                Reporter.Error.WriteLine(errorMessage);
-                throw new InvalidOperationException(errorMessage);
-            }
-
-            inputs.Add(project.LockFile.LockFilePath);
-
-            if (project.LockFile.ExportFile != null)
-            {
-                inputs.Add(project.LockFile.ExportFile.ExportFilePath);
-            }
-        }
-
-        private static void AddDependencies(ProjectDependenciesFacade dependencies, List<string> inputs)
-        {
-            // add dependency sources that need compilation
-            inputs.AddRange(dependencies.ProjectDependenciesWithSources.Values.SelectMany(p => p.Project.Files.SourceFiles));
-
-            // non project dependencies get captured by changes in the lock file
-        }
-
-        private static void AddCompilationOptions(ProjectContext project, string config, List<string> inputs)
-        {
-            var compilerOptions = project.ResolveCompilationOptions(config);
-
-            // input: key file
-            if (compilerOptions.KeyFile != null)
-            {
-                inputs.Add(compilerOptions.KeyFile);
-            }
-        }
-
-        private static void AddNonCultureResources(ProjectContext project, string intermediaryOutputPath, List<string> inputs, IList<string> outputs)
-        {
-            foreach (var resourceIO in CompilerUtil.GetNonCultureResources(project.ProjectFile, intermediaryOutputPath))
-            {
-                inputs.Add(resourceIO.InputFile);
-
-                if (resourceIO.OutputFile != null)
-                {
-                    outputs.Add(resourceIO.OutputFile);
-                }
-            }
-        }
-
-        private static void AddCultureResources(ProjectContext project, string outputPath, List<string> inputs, List<string> outputs)
-        {
-            foreach (var cultureResourceIO in CompilerUtil.GetCultureResources(project.ProjectFile, outputPath))
-            {
-                inputs.AddRange(cultureResourceIO.InputFileToMetadata.Keys);
-
-                if (cultureResourceIO.OutputFile != null)
-                {
-                    outputs.Add(cultureResourceIO.OutputFile);
-                }
-            }
         }
     }
 }
